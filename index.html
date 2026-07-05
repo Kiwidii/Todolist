@@ -136,6 +136,11 @@
                             <h4>Wiederholung</h4>
                             <div class="form-group">
                                 <label>Wochentage:</label>
+                                <div class="repetition-presets">
+                                    <button type="button" class="preset-btn" onclick="selectPreset('workdays')">Wochentage (Mo-Fr)</button>
+                                    <button type="button" class="preset-btn" onclick="selectPreset('weekend')">Wochenende (Sa-So)</button>
+                                    <button type="button" class="preset-btn" onclick="selectPreset('all')">Alle Tage</button>
+                                </div>
                                 <div class="weekday-selector">
                                     <label class="weekday-checkbox">
                                         <input type="checkbox" name="weekday" value="monday" checked> 

@@ -301,6 +301,34 @@ function setupEventListeners() {
             closeAllModals();
         }
     });
+
+// Select Preset Weekdays
+function selectPreset(preset) {
+    const checkboxes = document.querySelectorAll('input[name="weekday"]');
+    
+    // Uncheck all first
+    checkboxes.forEach(cb => cb.checked = false);
+    
+    // Check based on preset
+    switch(preset) {
+        case 'workdays':
+            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+                const checkbox = document.querySelector(`input[name="weekday"][value="${day}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            break;
+        case 'weekend':
+            ['saturday', 'sunday'].forEach(day => {
+                const checkbox = document.querySelector(`input[name="weekday"][value="${day}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            break;
+        case 'all':
+            checkboxes.forEach(cb => cb.checked = true);
+            break;
+    }
+}
+
 }
 
 // Open Modal

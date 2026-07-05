@@ -122,8 +122,8 @@ body {
     border-radius: 8px;
     box-shadow: var(--shadow);
     padding: 1rem;
-    min-width: 300px;
-    max-width: 350px;
+    min-width: 400px;
+    flex: 1;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -548,6 +548,28 @@ body {
     font-size: 0.8rem;
 }
 
+/* Repetition Presets */
+.repetition-presets {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.preset-btn {
+    padding: 0.4rem 0.8rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.preset-btn:hover {
+    background: #f0f0f0;
+    border-color: var(--primary-color);
+}
+
 /* Task Dependencies Visualization */
 .dependency-info {
     font-size: 0.7rem;
@@ -582,6 +604,7 @@ body {
 
     .child-column {
         max-width: 100%;
+        min-width: 100%;
     }
 
     .favorites-sidebar {
