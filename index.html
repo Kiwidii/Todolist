@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinder To-Do Liste</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Kinder To-Do Liste</h1>
+            <div class="header-controls">
+                <button id="add-child-btn" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Kind hinzufügen
+                </button>
+                <button id="settings-btn" class="btn btn-secondary">
+                    <i class="fas fa-cog"></i> Einstellungen
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="children-container" id="children-container">
+                <!-- Children columns will be added here dynamically -->
+            </div>
+        </main>
+
+        <!-- Favorite Tasks Sidebar -->
+        <aside class="favorites-sidebar" id="favorites-sidebar">
+            <div class="favorites-header">
+                <h3><i class="fas fa-star"></i> Lieblingstasks</h3>
+                <button id="toggle-favorites" class="btn btn-small">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+            <div class="favorites-list" id="favorites-list">
+                <!-- Favorite tasks will be added here -->
+            </div>
+        </aside>
+
+        <!-- Add Child Modal -->
+        <div id="add-child-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Kind hinzufügen</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-child-form">
+                        <div class="form-group">
+                            <label for="child-name">Name:</label>
+                            <input type="text" id="child-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="child-nickname">Spitzname:</label>
+                            <input type="text" id="child-nickname">
+                        </div>
+                        <div class="form-group">
+                            <label for="child-language">Sprache:</label>
+                            <select id="child-language">
+                                <option value="de">Deutsch</option>
+                                <option value="en">English</option>
+                                <option value="fr">Français</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="child-color">Farbe:</label>
+                            <input type="color" id="child-color" value="#4CAF50">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="confirm-add-child">Hinzufügen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div id="add-task-modal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>Task hinzufügen</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-task-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="task-name">Taskname:</label>
+                                <input type="text" id="task-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="task-type">Typ:</label>
+                                <select id="task-type">
+                                    <option value="mandatory">Pflicht</option>
+                                    <option value="voluntary">Freiwillig</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="task-description">Beschreibung:</label>
+                                <textarea id="task-description" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4>Zeit & Erinnerungen</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="task-reminder-type">Erinnerungstyp:</label>
+                                    <select id="task-reminder-type">
+                                        <option value="none">Keine</option>
+                                        <option value="fixed">Feste Zeit</option>
+                                        <option value="deadline">Deadline</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="fixed-time-group" style="display: none;">
+                                    <label for="task-fixed-time">Feste Zeit:</label>
+                                    <input type="time" id="task-fixed-time">
+                                </div>
+                                <div class="form-group" id="deadline-group" style="display: none;">
+                                    <label for="task-deadline">Deadline:</label>
+                                    <input type="time" id="task-deadline">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4>Wiederholung</h4>
+                            <div class="form-group">
+                                <label>Wochentage:</label>
+                                <div class="weekday-selector">
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="monday" checked> 
+                                        <span>Montag</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="tuesday"> 
+                                        <span>Dienstag</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="wednesday"> 
+                                        <span>Mittwoch</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="thursday"> 
+                                        <span>Donnerstag</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="friday"> 
+                                        <span>Freitag</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="saturday"> 
+                                        <span>Samstag</span>
+                                    </label>
+                                    <label class="weekday-checkbox">
+                                        <input type="checkbox" name="weekday" value="sunday"> 
+                                        <span>Sonntag</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="task-no-repeat" checked> 
+                                    <span>Nicht wiederholen</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4>Abhängigkeiten</h4>
+                            <div class="form-group">
+                                <label for="task-dependency">Abhängig von:</label>
+                                <select id="task-dependency">
+                                    <option value="">Keine Abhängigkeit</option>
+                                    <!-- Will be populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4>Favorit</h4>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="task-favorite"> 
+                                    <span>Als Favorit markieren</span>
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="confirm-add-task">Hinzufügen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Einstellungen</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="default-language">Standardsprache:</label>
+                        <select id="default-language">
+                            <option value="de">Deutsch</option>
+                            <option value="en">English</option>
+                            <option value="fr">Français</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-sound"> 
+                            <span>Alarme aktivieren</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="alarm-sound">Alarmton:</label>
+                        <select id="alarm-sound">
+                            <option value="bell">Glocke</option>
+                            <option value="beep">Piepton</option>
+                            <option value="chime">Klang</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-modal">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="save-settings">Speichern</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Details Modal -->
+        <div id="task-details-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Task-Details</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body" id="task-details-content">
+                    <!-- Task details will be populated dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="delete-task-btn">Löschen</button>
+                    <button type="button" class="btn btn-secondary close-modal">Schließen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio element for alarms -->
+        <audio id="alarm-sound" src="" preload="auto"></audio>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
