@@ -23,14 +23,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history for proper versioning
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
+      - name: Copy files to Pages directory
+        run: |
+          mkdir -p _site
+          cp -r index.html app.js styles.css _site/
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       
       - name: Deploy to GitHub Pages
         id: deployment
