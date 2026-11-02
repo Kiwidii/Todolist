@@ -54,6 +54,14 @@ body {
 .header-controls {
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.import-export-help {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #666;
 }
 
 /* Buttons */
@@ -95,6 +103,15 @@ body {
 
 .btn-danger:hover {
     background-color: #d32f2f;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: var(--text-light);
+}
+
+.btn-warning:hover {
+    background-color: #f57c00;
 }
 
 .btn-small {
@@ -243,6 +260,40 @@ body {
     color: #888;
 }
 
+.task-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.task-actions button {
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.task-actions button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+.btn-delete-task {
+    color: var(--danger-color) !important;
+}
+
+.btn-delete-task:hover {
+    background: rgba(244, 67, 54, 0.08) !important;
+    color: var(--danger-color) !important;
+}
+}
+
 .task-time {
     display: flex;
     align-items: center;
@@ -275,6 +326,20 @@ body {
 
 .task-actions button.favorite.active {
     color: #ff9800;
+}
+
+.pause-notice {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+    border-radius: 6px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.add-task-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* Add Task Button */

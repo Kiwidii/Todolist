@@ -1,4 +1,4 @@
-// Kinder To-Do Liste Application
+// Personen To-Do Liste Application
 // Main JavaScript file
 
 // Application State
@@ -8,17 +8,26 @@ const AppState = {
     settings: {
         defaultLanguage: 'de',
         enableSound: true,
-        alarmSound: 'bell'
+        alarmSound: 'bell',
+        pauseList: false,
+        globalPauseUntil: null
     },
     currentChildId: null,
-    currentTaskId: null
+    currentTaskId: null,
+    editingChildId: null,
+    editingTaskId: null
 };
+
+const activeAlarmTimers = new Map();
 
 // Language Translations
 const translations = {
     de: {
-        appTitle: 'Kinder To-Do Liste',
-        addChild: 'Kind hinzufügen',
+        appTitle: 'Personen To-Do Liste',
+        addChild: 'Person hinzufügen',
+        editChild: 'Person bearbeiten',
+        addTask: 'Aufgabe hinzufügen',
+        editTask: 'Aufgabe bearbeiten',
         settings: 'Einstellungen',
         name: 'Name',
         nickname: 'Spitzname',
@@ -29,6 +38,7 @@ const translations = {
         save: 'Speichern',
         close: 'Schließen',
         delete: 'Löschen',
+        edit: 'Bearbeiten',
         taskName: 'Aufgabenname',
         taskDescription: 'Beschreibung',
         taskType: 'Typ',
@@ -70,17 +80,23 @@ const translations = {
         noTasks: 'Keine Aufgaben für heute',
         allTasksCompleted: 'Alle Aufgaben erledigt!',
         notifications: {
-            childAdded: 'Kind hinzugefügt',
-            childDeleted: 'Kind gelöscht',
+            childAdded: 'Person hinzugefügt',
+            childDeleted: 'Person gelöscht',
             taskAdded: 'Aufgabe hinzugefügt',
             taskDeleted: 'Aufgabe gelöscht',
             taskCompleted: 'Aufgabe erledigt',
+            notCompleted: 'Aufgabe nicht erledigt',
+            childUpdated: 'Person aktualisiert',
+            taskUpdated: 'Aufgabe aktualisiert',
             settingsSaved: 'Einstellungen gespeichert'
         }
     },
     en: {
-        appTitle: 'Children To-Do List',
-        addChild: 'Add Child',
+        appTitle: 'People To-Do List',
+        addChild: 'Add Person',
+        editChild: 'Edit Person',
+        addTask: 'Add Task',
+        editTask: 'Edit Task',
         settings: 'Settings',
         name: 'Name',
         nickname: 'Nickname',
@@ -91,6 +107,7 @@ const translations = {
         save: 'Save',
         close: 'Close',
         delete: 'Delete',
+        edit: 'Edit',
         taskName: 'Task Name',
         taskDescription: 'Description',
         taskType: 'Type',
@@ -132,17 +149,23 @@ const translations = {
         noTasks: 'No tasks for today',
         allTasksCompleted: 'All tasks completed!',
         notifications: {
-            childAdded: 'Child added',
-            childDeleted: 'Child deleted',
+            childAdded: 'Person added',
+            childDeleted: 'Person deleted',
             taskAdded: 'Task added',
             taskDeleted: 'Task deleted',
             taskCompleted: 'Task completed',
+            notCompleted: 'Task not completed',
+            childUpdated: 'Person updated',
+            taskUpdated: 'Task updated',
             settingsSaved: 'Settings saved'
         }
     },
     fr: {
-        appTitle: "Liste de tâches pour enfants",
-        addChild: "Ajouter un enfant",
+        appTitle: "Liste de tâches pour personnes",
+        addChild: "Ajouter une personne",
+        editChild: "Modifier la personne",
+        addTask: "Ajouter une tâche",
+        editTask: "Modifier la tâche",
         settings: "Paramètres",
         name: "Nom",
         nickname: "Surnom",
@@ -153,6 +176,7 @@ const translations = {
         save: "Sauvegarder",
         close: "Fermer",
         delete: "Supprimer",
+        edit: "Modifier",
         taskName: "Nom de la tâche",
         taskDescription: "Description",
         taskType: "Type",
@@ -194,11 +218,14 @@ const translations = {
         noTasks: "Aucune tâche pour aujourd'hui",
         allTasksCompleted: "Toutes les tâches terminées !",
         notifications: {
-            childAdded: "Enfant ajouté",
-            childDeleted: "Enfant supprimé",
+            childAdded: "Personne ajoutée",
+            childDeleted: "Personne supprimée",
             taskAdded: "Tâche ajoutée",
             taskDeleted: "Tâche supprimée",
             taskCompleted: "Tâche terminée",
+            notCompleted: "Tâche non terminée",
+            childUpdated: "Personne mise à jour",
+            taskUpdated: "Tâche mise à jour",
             settingsSaved: "Paramètres enregistrés"
         }
     }
@@ -209,6 +236,8 @@ const elements = {
     childrenContainer: document.getElementById('children-container'),
     addChildBtn: document.getElementById('add-child-btn'),
     settingsBtn: document.getElementById('settings-btn'),
+    importDataBtn: document.getElementById('import-data-btn'),
+    exportDataBtn: document.getElementById('export-data-btn'),
     addChildModal: document.getElementById('add-child-modal'),
     addTaskModal: document.getElementById('add-task-modal'),
     settingsModal: document.getElementById('settings-modal'),
@@ -246,6 +275,80 @@ function loadData() {
     }
 }
 
+function buildExportPayload(state = AppState) {
+    return {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data: {
+            children: state.children,
+            favorites: state.favorites,
+            settings: state.settings
+        }
+    };
+}
+
+function normalizeImportedData(payload) {
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('Ungültiger Import-Export-Inhalt');
+    }
+
+    const data = payload.data || payload;
+    const normalizedChildren = Array.isArray(data.children) ? data.children : [];
+    const normalizedFavorites = Array.isArray(data.favorites) ? data.favorites : [];
+    const normalizedSettings = data.settings && typeof data.settings === 'object' ? data.settings : {};
+
+    return {
+        children: normalizedChildren,
+        favorites: normalizedFavorites,
+        settings: {
+            ...AppState.settings,
+            ...normalizedSettings
+        }
+    };
+}
+
+function exportData() {
+    const payload = buildExportPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'todolist-export.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showNotification('To-Go Liste exportiert');
+}
+
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.addEventListener('change', (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (loadEvent) => {
+            try {
+                const parsed = JSON.parse(loadEvent.target.result);
+                const imported = normalizeImportedData(parsed);
+                AppState.children = imported.children;
+                AppState.favorites = imported.favorites;
+                AppState.settings = { ...AppState.settings, ...imported.settings };
+                saveData();
+                updateUI();
+                showNotification('To-Go Liste importiert');
+            } catch (error) {
+                showNotification('Import fehlgeschlagen: Ungültige Datei', 'error');
+            }
+        };
+        reader.readAsText(file);
+    });
+    input.click();
+}
+
 // Save Data to LocalStorage
 function saveData() {
     localStorage.setItem('todolist_children', JSON.stringify(AppState.children));
@@ -258,6 +361,8 @@ function setupEventListeners() {
     // Header buttons
     elements.addChildBtn.addEventListener('click', () => openModal('add-child'));
     elements.settingsBtn.addEventListener('click', () => openModal('settings'));
+    elements.importDataBtn.addEventListener('click', importData);
+    elements.exportDataBtn.addEventListener('click', exportData);
 
     // Modal close buttons
     document.querySelectorAll('.close-modal').forEach(btn => {
@@ -272,6 +377,7 @@ function setupEventListeners() {
 
     // Settings Modal
     document.getElementById('save-settings').addEventListener('click', saveSettings);
+    document.getElementById('alarm-sound').addEventListener('change', previewAlarmTone);
 
     // Favorites Sidebar Toggle
     elements.toggleFavorites.addEventListener('click', toggleFavoritesSidebar);
@@ -281,9 +387,7 @@ function setupEventListeners() {
 
     // Reminder Type Change
     document.getElementById('task-reminder-type').addEventListener('change', function() {
-        const type = this.value;
-        document.getElementById('fixed-time-group').style.display = type === 'fixed' ? 'block' : 'none';
-        document.getElementById('deadline-group').style.display = type === 'deadline' ? 'block' : 'none';
+        setReminderVisibility(this.value);
     });
 
     // Close modals on outside click
@@ -301,6 +405,7 @@ function setupEventListeners() {
             closeAllModals();
         }
     });
+}
 
 // Select Preset Weekdays
 function selectPreset(preset) {
@@ -329,14 +434,22 @@ function selectPreset(preset) {
     }
 }
 
-}
-
 // Open Modal
 function openModal(modalName) {
+    const preservedChildId = AppState.currentChildId;
+    const preservedTaskId = AppState.currentTaskId;
+    const preservedEditingChildId = AppState.editingChildId;
+    const preservedEditingTaskId = AppState.editingTaskId;
+
     closeAllModals();
+    AppState.currentChildId = preservedChildId;
+    AppState.currentTaskId = preservedTaskId;
+    AppState.editingChildId = preservedEditingChildId;
+    AppState.editingTaskId = preservedEditingTaskId;
     
     switch(modalName) {
         case 'add-child':
+            prepareAddChildModal();
             elements.addChildModal.classList.add('open');
             break;
         case 'add-task':
@@ -361,6 +474,8 @@ function closeAllModals() {
     });
     AppState.currentChildId = null;
     AppState.currentTaskId = null;
+    AppState.editingChildId = null;
+    AppState.editingTaskId = null;
 }
 
 // Toggle Favorites Sidebar
@@ -383,6 +498,22 @@ function addChild() {
 
     if (!name) {
         showNotification('Please enter a name', 'error');
+        return;
+    }
+
+    if (AppState.editingChildId) {
+        const child = AppState.children.find(c => c.id === AppState.editingChildId);
+        if (!child) return;
+
+        child.name = name;
+        child.nickname = nickname || name;
+        child.language = language;
+        child.color = color;
+
+        saveData();
+        updateUI();
+        closeAllModals();
+        showNotification(getTranslation('notifications.childUpdated'));
         return;
     }
 
@@ -424,12 +555,45 @@ function addTask() {
     }
 
     if (!AppState.currentChildId) {
-        showNotification('No child selected', 'error');
+        showNotification('No person selected', 'error');
         return;
     }
 
     const child = AppState.children.find(c => c.id === AppState.currentChildId);
     if (!child) return;
+
+    if (AppState.editingTaskId) {
+        const task = child.tasks.find(t => t.id === AppState.editingTaskId);
+        if (!task) return;
+
+        const previousFavoriteState = task.isFavorite;
+        const previousName = task.name;
+        const previousDescription = task.description;
+
+        task.name = name;
+        task.description = description;
+        task.type = type;
+        task.reminderType = reminderType;
+        task.fixedTime = reminderType === 'fixed' ? fixedTime : null;
+        task.deadline = reminderType === 'deadline' ? deadline : null;
+        task.weekdays = weekdays;
+        task.noRepeat = noRepeat;
+        task.dependency = dependency || null;
+        task.isFavorite = isFavorite;
+
+        if (previousFavoriteState || isFavorite) {
+            AppState.favorites = AppState.favorites.filter(f => !(f.name === previousName && f.description === previousDescription));
+            if (isFavorite) {
+                addToFavorites(task);
+            }
+        }
+
+        saveData();
+        updateUI();
+        closeAllModals();
+        showNotification(getTranslation('notifications.taskUpdated'));
+        return;
+    }
 
     const newTask = {
         id: generateId(),
@@ -485,14 +649,26 @@ function addToFavorites(task) {
 }
 
 // Delete Task
-function deleteTask() {
-    if (!AppState.currentChildId || !AppState.currentTaskId) return;
+function deleteTask(childId = AppState.currentChildId, taskId = AppState.currentTaskId) {
+    if (!childId || !taskId) return;
 
-    const child = AppState.children.find(c => c.id === AppState.currentChildId);
+    const child = AppState.children.find(c => c.id === childId);
     if (!child) return;
 
-    child.tasks = child.tasks.filter(task => task.id !== AppState.currentTaskId);
-    
+    const task = child.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    child.tasks = child.tasks.filter(t => t.id !== taskId);
+    child.tasks.forEach(t => {
+        if (t.dependency === taskId) {
+            t.dependency = null;
+        }
+    });
+
+    AppState.favorites = AppState.favorites.filter(f =>
+        !(f.name === task.name && f.description === task.description)
+    );
+
     saveData();
     updateUI();
     closeAllModals();
@@ -504,6 +680,11 @@ function toggleTaskCompletion(childId, taskId) {
     const child = AppState.children.find(c => c.id === childId);
     if (!child) return;
 
+    if (isListPausedForChild(child)) {
+        showNotification('Die Liste ist gerade pausiert', 'error');
+        return;
+    }
+
     const task = child.tasks.find(t => t.id === taskId);
     if (!task) return;
 
@@ -514,13 +695,19 @@ function toggleTaskCompletion(childId, taskId) {
     }
 
     task.completed = !task.completed;
+
+    if (task.completed) {
+        stopAlarm(child.id, task.id);
+    }
     
     // Update dependent tasks
     updateDependentTasks(childId);
 
     saveData();
     updateUI();
-    showNotification(getTranslation('notifications.taskCompleted'));
+    showNotification(getTranslation(
+        task.completed ? 'notifications.taskCompleted' : 'notifications.notCompleted'
+    ));
 }
 
 // Check if Task is Locked by Dependency
@@ -554,21 +741,80 @@ function updateDependentTasks(childId) {
     });
 }
 
+// Prepare Add Child Modal
+function prepareAddChildModal() {
+    const form = document.getElementById('add-child-form');
+    const title = document.querySelector('#add-child-modal .modal-header h2');
+    const confirmButton = document.getElementById('confirm-add-child');
+
+    form.reset();
+
+    if (AppState.editingChildId) {
+        const child = AppState.children.find(c => c.id === AppState.editingChildId);
+        if (child) {
+            document.getElementById('child-name').value = child.name;
+            document.getElementById('child-nickname').value = child.nickname || '';
+            document.getElementById('child-language').value = child.language;
+            document.getElementById('child-color').value = child.color || '#4CAF50';
+        }
+        title.textContent = getTranslation('editChild');
+        confirmButton.textContent = getTranslation('save');
+    } else {
+        title.textContent = getTranslation('addChild');
+        confirmButton.textContent = getTranslation('add');
+    }
+}
+
 // Prepare Add Task Modal
 function prepareAddTaskModal() {
     // Reset form
     document.getElementById('add-task-form').reset();
     
+    const title = document.querySelector('#add-task-modal .modal-header h2');
+    const confirmButton = document.getElementById('confirm-add-task');
+    
     // Hide time fields initially
     document.getElementById('fixed-time-group').style.display = 'none';
     document.getElementById('deadline-group').style.display = 'none';
     
-    // Set default weekday to current day
-    const now = new Date();
-    const currentWeekday = getWeekdayName(now.getDay()).toLowerCase();
-    document.querySelectorAll(`input[name="weekday"]`).forEach(cb => {
-        cb.checked = cb.value === currentWeekday;
-    });
+    let taskToEdit = null;
+    if (AppState.editingTaskId && AppState.currentChildId) {
+        const child = AppState.children.find(c => c.id === AppState.currentChildId);
+        taskToEdit = child ? child.tasks.find(t => t.id === AppState.editingTaskId) : null;
+    }
+
+    if (taskToEdit) {
+        const taskWeekdays = Array.isArray(taskToEdit.weekdays) ? taskToEdit.weekdays : [];
+
+        document.getElementById('task-name').value = taskToEdit.name;
+        document.getElementById('task-description').value = taskToEdit.description || '';
+        document.getElementById('task-type').value = taskToEdit.type;
+        document.getElementById('task-reminder-type').value = taskToEdit.reminderType || 'none';
+        document.getElementById('task-fixed-time').value = taskToEdit.fixedTime || '';
+        document.getElementById('task-deadline').value = taskToEdit.deadline || '';
+        document.getElementById('task-no-repeat').checked = taskToEdit.noRepeat;
+        document.getElementById('task-dependency').value = taskToEdit.dependency || '';
+        document.getElementById('task-favorite').checked = taskToEdit.isFavorite;
+
+        document.querySelectorAll('input[name="weekday"]').forEach(cb => {
+            cb.checked = taskWeekdays.includes(cb.value);
+        });
+
+        title.textContent = getTranslation('editTask');
+        confirmButton.textContent = getTranslation('save');
+        setReminderVisibility(taskToEdit.reminderType || 'none');
+    } else {
+        // Set default weekday to current day
+        const now = new Date();
+        const currentWeekday = getWeekdayName(now.getDay()).toLowerCase();
+        document.querySelectorAll(`input[name="weekday"]`).forEach(cb => {
+            cb.checked = cb.value === currentWeekday;
+        });
+
+        title.textContent = getTranslation('addTask');
+        confirmButton.textContent = getTranslation('add');
+        setReminderVisibility('none');
+    }
     
     // Populate dependency dropdown
     const dependencySelect = document.getElementById('task-dependency');
@@ -578,7 +824,7 @@ function prepareAddTaskModal() {
         const child = AppState.children.find(c => c.id === AppState.currentChildId);
         if (child) {
             child.tasks.forEach(task => {
-                if (task.id !== AppState.currentTaskId) {
+                if (task.id !== AppState.editingTaskId) {
                     const option = document.createElement('option');
                     option.value = task.id;
                     option.textContent = task.name;
@@ -589,11 +835,30 @@ function prepareAddTaskModal() {
     }
 }
 
+function setReminderVisibility(type) {
+    document.getElementById('fixed-time-group').style.display = type === 'fixed' ? 'block' : 'none';
+    document.getElementById('deadline-group').style.display = type === 'deadline' ? 'block' : 'none';
+}
+
 // Prepare Settings Modal
 function prepareSettingsModal() {
     document.getElementById('default-language').value = AppState.settings.defaultLanguage;
     document.getElementById('enable-sound').checked = AppState.settings.enableSound;
     document.getElementById('alarm-sound').value = AppState.settings.alarmSound;
+    document.getElementById('pause-list').checked = AppState.settings.pauseList;
+    document.getElementById('global-pause-until').value = AppState.settings.globalPauseUntil || '';
+}
+
+function previewAlarmTone() {
+    const selectedSound = document.getElementById('alarm-sound')?.value || AppState.settings.alarmSound || 'bell';
+    AppState.settings.alarmSound = selectedSound;
+
+    const previewTask = {
+        name: 'Alarm Preview',
+        lastAlarmAt: null
+    };
+
+    triggerAlarm({ nickname: 'Preview', name: 'Preview' }, previewTask, true);
 }
 
 // Save Settings
@@ -601,11 +866,60 @@ function saveSettings() {
     AppState.settings.defaultLanguage = document.getElementById('default-language').value;
     AppState.settings.enableSound = document.getElementById('enable-sound').checked;
     AppState.settings.alarmSound = document.getElementById('alarm-sound').value;
+    AppState.settings.pauseList = document.getElementById('pause-list').checked;
+    AppState.settings.globalPauseUntil = document.getElementById('global-pause-until').value || null;
     
     saveData();
     closeAllModals();
     showNotification(getTranslation('notifications.settingsSaved'));
     updateUI();
+}
+
+function isPauseActive(pauseUntil, referenceDate = new Date()) {
+    if (!pauseUntil) return false;
+
+    const compareDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+    const untilDate = new Date(pauseUntil);
+    if (Number.isNaN(untilDate.getTime())) return false;
+
+    const normalizedUntilDate = new Date(untilDate.getFullYear(), untilDate.getMonth(), untilDate.getDate());
+    return compareDate <= normalizedUntilDate;
+}
+
+function getChildPauseState(child, referenceDate = new Date()) {
+    if (!child) return { isPaused: false, pauseUntil: null };
+
+    const isPaused = Boolean(child.isPaused && child.pauseUntil && isPauseActive(child.pauseUntil, referenceDate));
+    return {
+        isPaused,
+        pauseUntil: child.pauseUntil || null
+    };
+}
+
+function isListPausedForChild(child) {
+    if (AppState.settings.pauseList && isPauseActive(AppState.settings.globalPauseUntil)) {
+        return true;
+    }
+
+    return getChildPauseState(child).isPaused;
+}
+
+function getPauseMessage(child) {
+    if (AppState.settings.pauseList && isPauseActive(AppState.settings.globalPauseUntil)) {
+        return `Die gesamte Liste ist pausiert${AppState.settings.globalPauseUntil ? ` bis ${formatPauseDate(AppState.settings.globalPauseUntil)}` : ''}.`;
+    }
+
+    if (child && getChildPauseState(child).isPaused) {
+        return `Für ${child.nickname || child.name} ist die Liste pausiert${child.pauseUntil ? ` bis ${formatPauseDate(child.pauseUntil)}` : ''}.`;
+    }
+
+    return '';
+}
+
+function formatPauseDate(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return dateValue;
+    return `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
 }
 
 // Prepare Task Details Modal
@@ -707,7 +1021,7 @@ function updateChildrenColumns() {
     if (AppState.children.length === 0) {
         const noChildren = document.createElement('div');
         noChildren.className = 'no-children';
-        noChildren.textContent = 'Keine Kinder hinzugefügt. Klicken Sie auf "Kind hinzufügen" um zu beginnen.';
+        noChildren.textContent = 'Keine Personen hinzugefügt. Klicken Sie auf "Person hinzufügen" um zu beginnen.';
         elements.childrenContainer.appendChild(noChildren);
     }
 }
@@ -740,6 +1054,23 @@ function createChildColumn(child) {
         openModal('add-task');
     });
 
+    const pauseChildBtn = document.createElement('button');
+    pauseChildBtn.className = 'btn btn-small btn-warning';
+    pauseChildBtn.innerHTML = `<i class="fas ${getChildPauseState(child).isPaused ? 'fa-play' : 'fa-pause'}"></i>`;
+    pauseChildBtn.title = getChildPauseState(child).isPaused ? 'Pause beenden' : 'Für diese Person pausieren';
+    pauseChildBtn.addEventListener('click', () => toggleChildPause(child));
+
+    // Edit Child Button
+    const editChildBtn = document.createElement('button');
+    editChildBtn.className = 'btn btn-small btn-secondary';
+    editChildBtn.innerHTML = '<i class="fas fa-edit"></i>';
+    editChildBtn.title = getTranslation('edit', child.language);
+    editChildBtn.addEventListener('click', () => {
+        AppState.currentChildId = child.id;
+        AppState.editingChildId = child.id;
+        openModal('add-child');
+    });
+
     // Delete Child Button
     const deleteChildBtn = document.createElement('button');
     deleteChildBtn.className = 'btn btn-small btn-danger';
@@ -770,6 +1101,8 @@ function createChildColumn(child) {
     });
 
     controls.appendChild(addTaskBtn);
+    controls.appendChild(pauseChildBtn);
+    controls.appendChild(editChildBtn);
     controls.appendChild(deleteChildBtn);
     controls.appendChild(languageToggle);
 
@@ -780,29 +1113,39 @@ function createChildColumn(child) {
     const taskList = document.createElement('div');
     taskList.className = 'task-list';
 
-    // Filter tasks for current day
-    const currentWeekday = getCurrentWeekday();
-    const todayTasks = child.tasks.filter(task => 
-        task.weekdays.includes(currentWeekday) && !task.noRepeat
-    );
-
-    if (todayTasks.length === 0) {
-        const noTasks = document.createElement('div');
-        noTasks.className = 'no-tasks';
-        noTasks.textContent = getTranslation('noTasks', child.language);
-        taskList.appendChild(noTasks);
+    const paused = isListPausedForChild(child);
+    if (paused) {
+        const pauseNotice = document.createElement('div');
+        pauseNotice.className = 'pause-notice';
+        pauseNotice.textContent = getPauseMessage(child);
+        taskList.appendChild(pauseNotice);
     } else {
-        todayTasks.forEach(task => {
-            const taskElement = createTaskElement(child, task);
-            taskList.appendChild(taskElement);
-        });
+        // Show tasks that are scheduled for the current day
+        const currentWeekday = getCurrentWeekday();
+        const todayTasks = child.tasks.filter(task =>
+            Array.isArray(task.weekdays) && task.weekdays.includes(currentWeekday)
+        );
+
+        if (todayTasks.length === 0) {
+            const noTasks = document.createElement('div');
+            noTasks.className = 'no-tasks';
+            noTasks.textContent = getTranslation('noTasks', child.language);
+            taskList.appendChild(noTasks);
+        } else {
+            todayTasks.forEach(task => {
+                const taskElement = createTaskElement(child, task);
+                taskList.appendChild(taskElement);
+            });
+        }
     }
 
     // Add Task Button (at bottom)
     const addTaskButton = document.createElement('button');
     addTaskButton.className = 'add-task-btn';
     addTaskButton.innerHTML = '<i class="fas fa-plus"></i> ' + getTranslation('add', child.language);
+    addTaskButton.disabled = paused;
     addTaskButton.addEventListener('click', () => {
+        if (paused) return;
         AppState.currentChildId = child.id;
         openModal('add-task');
     });
@@ -863,6 +1206,30 @@ function createTaskElement(child, task) {
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'task-actions';
 
+    // Edit Task Button
+    const editTaskBtn = document.createElement('button');
+    editTaskBtn.innerHTML = '<i class="fas fa-edit"></i>';
+    editTaskBtn.title = getTranslation('edit', child.language);
+    editTaskBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        AppState.currentChildId = child.id;
+        AppState.currentTaskId = task.id;
+        AppState.editingTaskId = task.id;
+        openModal('add-task');
+    });
+
+    // Delete Task Button
+    const deleteTaskBtn = document.createElement('button');
+    deleteTaskBtn.className = 'btn-delete-task';
+    deleteTaskBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    deleteTaskBtn.title = getTranslation('delete', child.language);
+    deleteTaskBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.confirm('Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?')) {
+            deleteTask(child.id, task.id);
+        }
+    });
+
     // Favorite Button
     const favoriteBtn = document.createElement('button');
     favoriteBtn.className = `favorite ${task.isFavorite ? 'active' : ''}`;
@@ -884,6 +1251,8 @@ function createTaskElement(child, task) {
         openModal('task-details');
     });
 
+    actionsContainer.appendChild(editTaskBtn);
+    actionsContainer.appendChild(deleteTaskBtn);
     actionsContainer.appendChild(favoriteBtn);
     actionsContainer.appendChild(detailsBtn);
 
@@ -995,8 +1364,37 @@ function updateFavoritesSidebar() {
 }
 
 // Delete Child
+function toggleChildPause(child) {
+    const childPauseState = getChildPauseState(child);
+    if (childPauseState.isPaused) {
+        child.isPaused = false;
+        child.pauseUntil = null;
+        saveData();
+        updateUI();
+        showNotification('Pause für diese Person beendet');
+        return;
+    }
+
+    const pauseUntil = window.prompt('Pause bis (JJJJ-MM-TT):', getDefaultPauseDate());
+    if (!pauseUntil) {
+        return;
+    }
+
+    child.isPaused = true;
+    child.pauseUntil = pauseUntil;
+    saveData();
+    updateUI();
+    showNotification(`Pause für ${child.nickname || child.name} aktiviert`);
+}
+
+function getDefaultPauseDate() {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().slice(0, 10);
+}
+
 function deleteChild(childId) {
-    if (confirm('Sind Sie sicher, dass Sie dieses Kind und alle seine Tasks löschen möchten?')) {
+    if (confirm('Sind Sie sicher, dass Sie diese Person und alle ihre Tasks löschen möchten?')) {
         AppState.children = AppState.children.filter(child => child.id !== childId);
         saveData();
         updateUI();
@@ -1083,57 +1481,144 @@ function startAlarmChecker() {
     checkAlarms();
 }
 
+function getTimeMinutes(timeString) {
+    if (!timeString || typeof timeString !== 'string') return null;
+
+    const [hours, minutes] = timeString.split(':').map(part => Number(part));
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+
+    return hours * 60 + minutes;
+}
+
+function shouldTriggerAlarm(task, currentMinutes, now) {
+    if (!task || task.completed) return false;
+
+    const taskTime = task.reminderType === 'fixed' ? task.fixedTime : task.deadline;
+    const taskMinutes = getTimeMinutes(taskTime);
+    if (taskMinutes === null) return false;
+
+    if (currentMinutes < taskMinutes) return false;
+
+    if (task.lastAlarmAt) {
+        const lastAlarm = new Date(task.lastAlarmAt);
+        if (!Number.isNaN(lastAlarm.getTime())) {
+            const lastAlarmMinutes = lastAlarm.getHours() * 60 + lastAlarm.getMinutes();
+            const sameDay = lastAlarm.toDateString() === now.toDateString();
+            if (sameDay && lastAlarmMinutes >= taskMinutes) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 // Check Alarms
 function checkAlarms() {
     if (!AppState.settings.enableSound) return;
+    if (AppState.settings.pauseList && isPauseActive(AppState.settings.globalPauseUntil)) return;
 
     const now = new Date();
     const currentTime = now.toTimeString().substr(0, 5); // HH:mm format
+    const currentMinutes = getTimeMinutes(currentTime);
     const currentWeekday = getCurrentWeekday();
 
     AppState.children.forEach(child => {
+        if (isListPausedForChild(child)) return;
+
         child.tasks.forEach(task => {
             // Check if task is for today
-            if (!task.weekdays.includes(currentWeekday)) return;
-            
-            // Check if task is already completed
-            if (task.completed) return;
+            if (!Array.isArray(task.weekdays) || !task.weekdays.includes(currentWeekday)) return;
 
-            // Check fixed time alarms
-            if (task.reminderType === 'fixed' && task.fixedTime === currentTime) {
+            if (task.reminderType === 'fixed' && shouldTriggerAlarm(task, currentMinutes, now)) {
                 triggerAlarm(child, task);
             }
 
-            // Check deadline alarms
-            if (task.reminderType === 'deadline' && task.deadline === currentTime) {
-                // Only trigger if task is not completed
+            if (task.reminderType === 'deadline' && shouldTriggerAlarm(task, currentMinutes, now)) {
                 triggerAlarm(child, task);
             }
         });
     });
 }
 
+function playAlarmFallbackTone(frequency = 700, durationMs = 800) {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return false;
+
+    try {
+        const context = new AudioContextCtor();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        const now = context.currentTime;
+        const durationSeconds = durationMs / 1000;
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, now);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(220, frequency * 0.75), now + durationSeconds);
+
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + durationSeconds);
+
+        if (context.resume && context.state === 'suspended') {
+            context.resume().catch(() => {});
+        }
+
+        return true;
+    } catch (error) {
+        console.log('Audio fallback failed:', error);
+        return false;
+    }
+}
+
 // Trigger Alarm
-function triggerAlarm(child, task) {
-    // Set alarm sound
-    let soundSrc = '';
-    switch(AppState.settings.alarmSound) {
-        case 'bell':
-            soundSrc = 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3';
-            break;
-        case 'beep':
-            soundSrc = 'https://assets.mixkit.co/sfx/preview/mixkit-positive-notification-951.mp3';
-            break;
-        case 'chime':
-            soundSrc = 'https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3';
-            break;
+function triggerAlarm(child, task, previewMode = false) {
+    const soundChoice = AppState.settings.alarmSound || 'bell';
+    const soundFrequency = soundChoice === 'beep' ? 800 : soundChoice === 'chime' ? 600 : 700;
+
+    task.lastAlarmAt = new Date().toISOString();
+
+    const fallbackPlayed = playAlarmFallbackTone(soundFrequency, previewMode ? 2000 : 800);
+    if (elements.alarmSound) {
+        elements.alarmSound.src = '';
+        if (!fallbackPlayed && elements.alarmSound.play) {
+            elements.alarmSound.play().catch(() => {});
+        }
     }
 
-    elements.alarmSound.src = soundSrc;
-    elements.alarmSound.play().catch(e => console.log('Audio play failed:', e));
-
     // Show notification
-    showNotification(`Alarm: ${task.name} für ${child.nickname || child.name}`, 'alarm');
+    if (!previewMode) {
+        showNotification(`Alarm: ${task.name} für ${child.nickname || child.name}`, 'alarm');
+
+        const alarmId = `${child.id}:${task.id}`;
+        if (child.id && task.id && !activeAlarmTimers.has(alarmId)) {
+            const alarmTimer = setInterval(() => {
+                if (task.completed) {
+                    stopAlarm(child.id, task.id);
+                    return;
+                }
+
+                playAlarmFallbackTone(soundFrequency, 800);
+            }, 1000);
+            if (typeof alarmTimer.unref === 'function') alarmTimer.unref();
+            activeAlarmTimers.set(alarmId, alarmTimer);
+        }
+    }
+}
+
+function stopAlarm(childId, taskId) {
+    const alarmId = `${childId}:${taskId}`;
+    const alarmTimer = activeAlarmTimers.get(alarmId);
+    if (!alarmTimer) return;
+
+    clearInterval(alarmTimer);
+    activeAlarmTimers.delete(alarmId);
 }
 
 // Initialize Application when DOM is loaded
@@ -1156,6 +1641,13 @@ if (typeof module !== 'undefined' && module.exports) {
         generateId,
         getCurrentWeekday,
         isTaskLocked,
-        toggleTaskCompletion
+        toggleTaskCompletion,
+        buildExportPayload,
+        normalizeImportedData,
+        isPauseActive,
+        getChildPauseState,
+        checkAlarms,
+        deleteTask,
+        triggerAlarm
     };
 }

@@ -1,24 +1,24 @@
-# Kinder To-Do Liste
+# Personen To-Do Liste
 
-A customizable daily to-do list application for children, allowing parents or guardians to manage tasks, dependencies, reminders, and recurrence efficiently.
+A customizable daily to-do list application for people, allowing parents or guardians to manage tasks, dependencies, reminders, and recurrence efficiently.
 
 ## Features
 
 ### 1. Child Management
-- **Columns**: Each child has their own column in the interface
-- **Add/Delete Children**: Buttons to add or remove children from the list
-- **Title Display**: The name or nickname of each child is always visible at the top of their respective column
-- **Color Coding**: Each child can have a custom color for their column
+- **Columns**: Each person has their own column in the interface
+- **Add/Delete People**: Buttons to add or remove people from the list
+- **Title Display**: The name or nickname of each person is always visible at the top of their respective column
+- **Color Coding**: Each person can have a custom color for their column
 
 ### 2. Task Management
-- **Task Lists**: Each child has their own dedicated to-do list
-- **Add/Delete Tasks**: Users can add or remove tasks for each child
+- **Task Lists**: Each person has their own dedicated to-do list
+- **Add/Delete Tasks**: Users can add or remove tasks for each person
 - **Task Status**: Each task has a checkbox that can be ticked to mark it as completed
 - **Task Types**: Mandatory (red border) and Voluntary (blue border) tasks
 
 ### 3. Task Types and Reminders
 - **Mandatory Tasks**: Must be completed (marked with red border)
-- **Voluntary Tasks**: Optional for the child (marked with blue border)
+- **Voluntary Tasks**: Optional for the person (marked with blue border)
 - **Fixed-Time Tasks**: Tasks with a specific time that trigger an acoustic alarm when due
 - **Deadline Tasks**: Tasks that trigger an alarm only if they are not ticked before a programmed deadline
 
@@ -29,8 +29,8 @@ A customizable daily to-do list application for children, allowing parents or gu
 
 ### 5. Language Support
 - **Default Language**: German
-- **Per-Child Language Toggle**: Each child's list can be displayed in English, German, or French, independently of the others
-- **Language Switcher**: Each child column has a language toggle button (DE, EN, FR)
+- **Per-Person Language Toggle**: Each person's list can be displayed in English, German, or French, independently of the others
+- **Language Switcher**: Each person column has a language toggle button (DE, EN, FR)
 
 ### 6. Recurring Tasks
 - **Weekday-Specific Entries**: Tasks are tied to specific weekdays (e.g., Monday, Tuesday)
